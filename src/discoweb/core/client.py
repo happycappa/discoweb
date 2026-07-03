@@ -1,17 +1,53 @@
 from __future__ import annotations
 import requests
+import json
+from typing import Union
 from .objects import Message
 from .errors import RatelimitError, WebhookError, NotFound, GeneralAPIError, BadRequest
 
 class Webhook:
     """A webhook on Discord that allows you to send messages"""
     def __init__(self, webhook_url: str):
-        self.webhook = webhook_url
-        self.session = requests.Session()
+        if '?wait=true' in webhook_url:
+            webhook_url = webhook_url.replace('?wait=true', '')
+        elif '&wait=true' in webhook_url:
+            webhook_url = webhook_url.replace('&wait=true', '')
 
-    def req_webhook(self, get: bool = False, data: dict | None = None) -> requests.Response:
+        self.webhook = webhook_url
+        self.info: WebhookInfo | None = None
+        self.session = requests.Session()
+        self.fetch_metadata()
+
+    def req_webhook(
+            self,
+            json_data: dict | None = None,
+            type: str = 'get',
+            data: dict | None = None,
+            files: dict | None = None,
+            msg_id: str | None = None
+        ) -> requests.Response:
+
+        if msg_id and type in ('patch', 'delete'):
+            url = f'{self.webhook}/messages/{msg_id}'
+        else:
+            url = self.webhook
+
+        if type in ('post', 'patch', 'files', 'delete'):
+            url = f'{url}?wait=true'
+
         try:
-            response = self.session.get(self.webhook) if get else self.session.post(self.webhook, json=data)
+            if type == 'get':
+                response = self.session.get(url)
+            elif type == 'post':
+                response = self.session.post(url, json=json_data)
+            elif type == 'patch':
+                response = self.session.patch(url, json=json_data)
+            elif type == 'files':
+                response = self.session.post(url, data=data, files=files)
+            elif type == 'delete':
+                response = self.session.delete(url)
+            else:
+                raise ValueError('No type for that?')
         except requests.RequestException as error:
             raise GeneralAPIError(f'Network error occured: {error}')
 
@@ -30,12 +66,18 @@ class Webhook:
         except requests.RequestException as HTTPError:
             raise GeneralAPIError(f'HTTP Error occured: {HTTPError}')
         
-    def send(self, message: Message, del_after: int | None = None, username: str | None = None, avatar_url: str | None = None):
+    def fetch_metadata(self):
+        """Fetches the metadata of the webhook"""
+        response = self.req_webhook(type='get')
+        data = response.json()
+
+        self.info = WebhookInfo(data)
+
+    def send(self, message: Message, username: str | None = None, avatar_url: str | None = None):
         """_Sends a message with the webhook_
 
         Args:
             message (Message): _The message object to use_
-            del_after (int | None, optional): _The time (in seconds) before it's deleted_. Defaults to None.
             username (str | None, optional): _The username to use_. Defaults to None.
             avatar_url (str | None, optional): _The image URL of the avatar to use_. Defaults to None.
         """
@@ -49,4 +91,33 @@ class Webhook:
         if avatar_url is not None:
             payload['avatar_url'] = avatar_url
 
-        self.req_webhook(False, payload)
+        if message.files:
+            files_payload = message.get_files_payload()
+            form_data = {'payload_json': json.dumps(payload)}
+
+            try:
+                return self.req_webhook(data=form_data, files=files_payload)
+            finally:
+                for file_obj in message.files:
+                    file_obj.close()
+        else:
+            return self.req_webhook(type='post', json_data=payload)
+        
+    def edit(self, message_id: str, new_msg: Message | str):
+        if isinstance(new_msg, str):
+            new_msg = Message(content=new_msg)
+
+        payload = new_msg.to_dict()
+        return self.req_webhook(type='patch', json_data=payload, msg_id=message_id)
+
+class WebhookInfo:
+    """The info of the webhook itself (name, channel, etc.)"""
+    def __init__(self, data: dict):
+        self.id: str = data.get('id', '')
+        self.name: str = data.get('name', '')
+        self.avatar: str = data.get('avatar', '')
+        self.channel_id: str = data.get('channel_id', '')
+        self.guild_id: str = data.get('guild_id', '')
+        self.id: str = data.get('id', '')
+        self.token: str = data.get('token', '')
+        self.url: str = data.get('url', '')
