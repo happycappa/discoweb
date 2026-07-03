@@ -1,6 +1,6 @@
 from .core.client import Webhook
 from .core.errors import RatelimitError, BadRequest, WebhookError, NotFound, GeneralAPIError
-from .core.objects import Message, Embed
+from .core.objects import Message, Embed, File
 
 __all__ = [
     'Webhook',
@@ -10,5 +10,6 @@ __all__ = [
     'NotFound',
     'GeneralAPIError',
     'Message',
-    'Embed'
+    'Embed',
+    'File'
 ]
