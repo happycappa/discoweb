@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "discoweb"
+description = "Make webhooks on Discord simpler for ALL"
+authors = [{name = "happycappa", email = "280617573+happycappa@users.noreply.github.com"}]
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "requests<=2.34.2"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]

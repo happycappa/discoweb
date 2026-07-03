@@ -1,0 +1,25 @@
+# annoying pycache
+*__pycache__/
+*$py.class
+*.py[cod]
+*.pyc
+
+# environment files
+.venv
+venv
+/ENV
+*.env
+
+# vscode files
+.vscode/
+.idea/
+.DS_Store
+.history/
+*.vsix
+tempCodeRunnerFile.*
+.ionide/
+
+# package files/test folder
+test/
+dist/
+.hatch/
