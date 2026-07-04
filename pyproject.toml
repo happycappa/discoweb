@@ -11,13 +11,13 @@ Issues = "https://github.com/happycappa/discoweb/issues"
 name = "discoweb"
 description = "Make webhooks on Discord simpler for all!"
 authors = [{name = "happycappa", email = "280617573+happycappa@users.noreply.github.com"}]
-version = "0.1.0"
+version = "0.1.3"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
 dependencies = [
-    "requests<=2.31.0",
-    "aiohttp<=3.9.0",
+    "requests>=2.31.0",
+    "aiohttp>=3.9.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
