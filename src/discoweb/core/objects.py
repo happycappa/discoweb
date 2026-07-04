@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from pathlib import Path
 
 class Embed:
     """A simple Discord embed object"""
@@ -26,12 +27,16 @@ class Embed:
     
 class File:
     """A file object that contains media inside it"""
-    def __init__(self, file_path: str, filename: str | None = None):
-        if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Could not find the file associated with the path: {file_path}")
-        self.fp = file_path
-        self.filename = filename
+    def __init__(self, file_path: str | Path, filename: str | None = None):
+        self.fp = Path(file_path) if isinstance(file_path, str) else file_path
+        if not self.fp.is_file():
+            raise FileNotFoundError(f'Could not find the file associated with the path: {self.fp}')
+        self.filename = filename or self.fp.name
         self._file_stream = None
+
+    def read_bytes(self):
+        """Reads the file's bytes"""
+        return self.fp.read_bytes()
 
     def open(self):
         """Opens the file object in binary read mode and creates a stream"""
@@ -61,5 +66,11 @@ class Message:
         """Opens and groups the files into a form-data dictionary structure"""
         payload = {}
         for index, file_obj in enumerate(self.files):
-            payload[f'files[{index}]'] = file_obj.open()
+            fbytes = file_obj.read_bytes()
+
+            payload[f'files[{index}]'] = (
+                file_obj.filename,
+                fbytes,
+                'application/octet-stream'
+            )
         return payload
