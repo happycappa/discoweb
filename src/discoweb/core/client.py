@@ -1,9 +1,13 @@
 from __future__ import annotations
-import requests
+
 import json
+
 import aiohttp
+import requests
+
+from .errors import BadRequest, GeneralAPIError, RatelimitError
 from .objects import Message
-from .errors import RatelimitError, GeneralAPIError, BadRequest
+
 
 class Webhook:
     """A webhook on Discord that allows you to send messages"""
@@ -61,15 +65,15 @@ class Webhook:
             except ValueError:
                 disc_response = 'Invalid JSON response'
             raise BadRequest(disc_response)
-        elif response.status_code == 429:
+        if response.status_code == 429:
             raise RatelimitError("You've hit Discord's ratelimit, slow down!")
-        
+
         try:
             response.raise_for_status()
             return response
         except requests.RequestException as HTTPError:
             raise GeneralAPIError(f'HTTP Error occured: {HTTPError}')
-        
+
     def fetch_metadata(self):
         """Fetches the metadata of the webhook"""
         response = self.req_webhook(type='get')
@@ -103,14 +107,14 @@ class Webhook:
         else:
             response = self.req_webhook(type='post', json_data=payload)
             return response.json()
-        
+
     def edit(self, message_id: str, new_msg: Message | str):
         """Edits a message from the webhook"""
         if isinstance(new_msg, str):
             new_msg = Message(content=new_msg)
 
         payload = new_msg.to_dict()
-        
+
         if new_msg.files:
             files_payload = new_msg.get_files_payload()
             form_data = {'payload_json': (None, json.dumps(payload), 'application/json')}
@@ -125,7 +129,7 @@ class Webhook:
         else:
             response = self.req_webhook(type='patch', json_data=payload, msg_id=message_id)
             return response.json()
-    
+
     def delete(self, message_id: str):
         """Deletes a message from the webhook"""
         return self.req_webhook(type='delete', msg_id=message_id)
@@ -159,7 +163,7 @@ class AsyncHook:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
-    
+
     async def close(self):
         """Safely closes the session"""
         if self._session and not self._session.closed:
@@ -176,7 +180,7 @@ class AsyncHook:
 
         if getattr(self, 'info', None) is None and type != 'get':
             await self.fetch_metadata()
-        
+
         session = await self._getses()
 
         if msg_id and type in ('patch', 'delete'):
@@ -191,21 +195,19 @@ class AsyncHook:
             if type == 'get':
                 response = await self._session.get(url)
                 return await response.json()
-            elif type == 'post':
+            if type == 'post':
                 if files is not None:
                     response = await self._session.post(url, files=files)
                     return await response.json()
-                else:
-                    response = await self._session.post(url, json=json_data)
-                    return await response.json()
-            elif type == 'patch':
+                response = await self._session.post(url, json=json_data)
+                return await response.json()
+            if type == 'patch':
                 if files is not None:
                     response = await self._session.patch(url, files=files)
                     return await response.json()
-                else:
-                    response = await self._session.patch(url, json=json_data)
-                    return await response.json()
-            elif type == 'delete':
+                response = await self._session.patch(url, json=json_data)
+                return await response.json()
+            if type == 'delete':
                 response = self._session.delete(url)
             else:
                 raise ValueError('No type for that?')
@@ -219,15 +221,15 @@ class AsyncHook:
             except (ValueError, aiohttp.ContentTypeError):
                 disc_response = 'Invalid JSON response'
             raise BadRequest(disc_response)
-        elif response.status == 429:
+        if response.status == 429:
             raise RatelimitError("You've hit Discord's ratelimit, slow down!")
-        
+
         try:
             response.raise_for_status()
             return response
         except aiohttp.ClientError as HTTPError:
             raise GeneralAPIError(f'HTTP Error occured: {HTTPError}')
-        
+
     async def fetch_metadata(self):
         """Fetches the metadata of the webhook"""
         response = await self.req_webhook(type='get')
@@ -249,7 +251,7 @@ class AsyncHook:
         if message.files:
             files_payload = message.get_files_payload()
             form_data = aiohttp.FormData()
-            
+
             for key, (filename, fb, ct) in files_payload.items():
                 form_data.add_field(
                     key,
@@ -267,14 +269,14 @@ class AsyncHook:
         else:
             response = await self.req_webhook(type='post', json_data=payload)
             return response
-        
+
     async def edit(self, message_id: str, new_msg: Message | str):
         """Edits a message from the webhook"""
         if isinstance(new_msg, str):
             new_msg = Message(content=new_msg)
 
         payload = new_msg.to_dict()
-        
+
         if new_msg.files:
             files_payload = new_msg.get_files_payload()
             form_data = {'payload_json': (None, json.dumps(payload), 'application/json')}
@@ -289,7 +291,7 @@ class AsyncHook:
         else:
             response = await self.req_webhook(type='patch', json_data=payload, msg_id=message_id)
             return await response.json()
-    
+
     async def delete(self, message_id: str):
         """Deletes a message from the webhook"""
         return await self.req_webhook(type='delete', msg_id=message_id)
