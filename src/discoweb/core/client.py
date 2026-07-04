@@ -39,11 +39,15 @@ class Webhook:
             if type == 'get':
                 response = self.session.get(url)
             elif type == 'post':
-                response = self.session.post(url, json=json_data)
+                if files is not None:
+                    response = self.session.post(url, files=files)
+                else:
+                    response = self.session.post(url, json=json_data)
             elif type == 'patch':
-                response = self.session.patch(url, json=json_data)
-            elif type == 'files':
-                response = self.session.post(url, data=data, files=files)
+                if files is not None:
+                    response = self.session.post(url, files=files)
+                else:
+                    response = self.session.post(url, json=json_data)
             elif type == 'delete':
                 response = self.session.delete(url)
             else:
@@ -93,10 +97,11 @@ class Webhook:
 
         if message.files:
             files_payload = message.get_files_payload()
-            form_data = {'payload_json': json.dumps(payload)}
+            form_data = {'payload_json': (None, json.dumps(payload), 'application/json')}
+            form_data.update(files_payload)
 
             try:
-                return self.req_webhook(data=form_data, files=files_payload)
+                return self.req_webhook(type='post', json_data=payload, files=form_data)
             finally:
                 for file_obj in message.files:
                     file_obj.close()
@@ -109,6 +114,9 @@ class Webhook:
 
         payload = new_msg.to_dict()
         return self.req_webhook(type='patch', json_data=payload, msg_id=message_id)
+    
+    def delete(self, message_id: str):
+        return self.req_webhook(type='delete', msg_id=message_id)
 
 class WebhookInfo:
     """The info of the webhook itself (name, channel, etc.)"""
